@@ -1,0 +1,92 @@
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { FiUser, FiMail, FiLock, FiPhone, FiArrowRight } from 'react-icons/fi';
+
+export default function Register() {
+  const [form, setForm] = useState({ name: '', email: '', password: '', contact_no: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await register({ ...form, user_type: 'User' });
+      navigate('/user/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Registration failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg, var(--bg-primary) 0%, #111638 50%, #0a0e27 100%)',
+      padding: '20px'
+    }}>
+      <div className="glass-card animate-fade-in" style={{ width: '100%', maxWidth: '440px', padding: '40px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ fontSize: '36px', marginBottom: '8px' }}>🅿️</div>
+          <h1 style={{
+            fontSize: '24px', fontWeight: 800,
+            background: 'linear-gradient(135deg, var(--text-primary), var(--accent-emerald-light))',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+          }}>Create Account</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
+            Join SmartPark to start booking
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            padding: '12px 16px', borderRadius: 'var(--radius-sm)',
+            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#f87171', fontSize: '13px', marginBottom: '20px'
+          }}>{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            <div className="input-group">
+              <label><FiUser size={12} /> Full Name</label>
+              <input name="name" className="input-field" value={form.name}
+                onChange={handleChange} placeholder="John Doe" required />
+            </div>
+            <div className="input-group">
+              <label><FiMail size={12} /> Email</label>
+              <input type="email" name="email" className="input-field" value={form.email}
+                onChange={handleChange} placeholder="john@example.com" required />
+            </div>
+            <div className="input-group">
+              <label><FiLock size={12} /> Password</label>
+              <input type="password" name="password" className="input-field" value={form.password}
+                onChange={handleChange} placeholder="••••••••" required />
+            </div>
+            <div className="input-group">
+              <label><FiPhone size={12} /> Contact Number</label>
+              <input name="contact_no" className="input-field" value={form.contact_no}
+                onChange={handleChange} placeholder="9876543210" required maxLength={10} />
+            </div>
+            <button type="submit" className="btn btn-success btn-lg" disabled={loading}
+              style={{ width: '100%', marginTop: '8px' }}>
+              {loading ? 'Creating...' : <>Create Account <FiArrowRight /></>}
+            </button>
+          </div>
+        </form>
+
+        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--text-muted)' }}>
+          Already have an account?{' '}
+          <Link to="/login" style={{ color: 'var(--accent-blue-light)', fontWeight: 600 }}>Sign In</Link>
+        </p>
+      </div>
+    </div>
+  );
+}

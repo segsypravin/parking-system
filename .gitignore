@@ -7,3 +7,14 @@ backend/.env
 frontend/.env
 *.log
 git_status.txt
+*_check.txt
+backend/fix_database_final.js
+backend/verify_fix.js
+backend/create_admin.js
+backend/seed_locations.js
+backend/vehicle_schema.txt
+backend/all_schemas.txt
+backend/fv_check.txt
+backend/user_check.txt
+backend/location_check.txt
+backend/vehicle_check.txt

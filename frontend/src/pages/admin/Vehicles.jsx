@@ -8,20 +8,33 @@ export default function AdminVehicles() {
   const [showModal, setShowModal] = useState(false);
   const [editVehicle, setEditVehicle] = useState(null);
   const [form, setForm] = useState({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N', user_id: '' });
+  const [modalError, setModalError] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  const [pageError, setPageError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const [vRes, uRes] = await Promise.all([API.get('/vehicles'), API.get('/users')]);
-      setVehicles(vRes.data);
-      setUsers(uRes.data);
-    } catch (err) { console.error(err); }
+      setVehicles(Array.isArray(vRes.data) ? vRes.data : []);
+      setUsers(Array.isArray(uRes.data) ? uRes.data : []);
+    } catch (err) {
+      console.error('Load data error:', err);
+      setPageError('Failed to load vehicles or users. Please refresh the page.');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setModalError('');
+    setModalLoading(true);
     try {
+      // Ensure user_id is provided
+      if (!form.user_id) {
+        throw new Error('Please select an owner for the vehicle.');
+      }
+
       if (editVehicle) {
         await API.put(`/vehicles/${editVehicle.vehicle_id}`, form);
       } else {
@@ -31,12 +44,25 @@ export default function AdminVehicles() {
       setEditVehicle(null);
       setForm({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N', user_id: '' });
       loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error('Vehicle submit error:', err);
+      setModalError(err.response?.data?.error || err.message || 'Failed to save vehicle.');
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleEdit = (v) => {
     setEditVehicle(v);
-    setForm({ vehicle_no: v.vehicle_no, vehicle_type: v.vehicle_type, frequent_visitor: v.frequent_visitor, user_id: v.user_id });
+    setModalError('');
+    setForm({ vehicle_no: v.vehicle_no, vehicle_type: v.vehicle_type, frequent_visitor: v.frequent_visitor || 'N', user_id: v.user_id || '' });
+    setShowModal(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditVehicle(null);
+    setModalError('');
+    setForm({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N', user_id: '' });
     setShowModal(true);
   };
 
@@ -50,10 +76,16 @@ export default function AdminVehicles() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div><h1>Vehicles</h1><p>Manage all registered vehicles</p></div>
-        <button className="btn btn-primary" onClick={() => { setEditVehicle(null); setForm({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N', user_id: '' }); setShowModal(true); }}>
+        <button className="btn btn-primary" onClick={handleOpenAdd}>
           <FiPlus /> Add Vehicle
         </button>
       </div>
+
+      {pageError && (
+        <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', marginBottom: '16px' }}>
+          {pageError}
+        </div>
+      )}
 
       <div className="glass-card">
         <div style={{ overflowX: 'auto' }}>
@@ -129,9 +161,16 @@ export default function AdminVehicles() {
                   </select>
                 </div>
               </div>
+              {modalError && (
+                <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', marginTop: '16px' }}>
+                  {modalError}
+                </div>
+              )}
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{editVehicle ? 'Update' : 'Add Vehicle'}</button>
+                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={modalLoading}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={modalLoading}>
+                  {modalLoading ? 'Saving...' : (editVehicle ? 'Update' : 'Add Vehicle')}
+                </button>
               </div>
             </form>
           </div>

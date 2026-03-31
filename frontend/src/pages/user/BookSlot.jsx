@@ -10,6 +10,7 @@ export default function BookSlot() {
   const [form, setForm] = useState({ vehicle_id: '', slot_type: 'Car', location_id: '', preferred_level: '' });
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { loadData(); }, []);
@@ -21,10 +22,13 @@ export default function BookSlot() {
         API.get('/locations'),
         API.get('/slots')
       ]);
-      setVehicles(vRes.data);
-      setLocations(lRes.data);
-      setSlots(sRes.data);
-    } catch (err) { console.error(err); }
+      setVehicles(Array.isArray(vRes.data) ? vRes.data : []);
+      setLocations(Array.isArray(lRes.data) ? lRes.data : []);
+      setSlots(Array.isArray(sRes.data) ? sRes.data : []);
+    } catch (err) {
+      console.error('Load data error:', err);
+      setLoadError('Failed to load data. Please refresh the page.');
+    }
   };
 
   const filteredSlots = slots.filter(s => {
@@ -59,6 +63,14 @@ export default function BookSlot() {
         {/* Booking Form */}
         <div className="glass-card animate-fade-in">
           <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Booking Request</h3>
+          
+          {loadError && (
+            <div style={{
+              padding: '12px', borderRadius: 'var(--radius-sm)',
+              background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171', fontSize: '13px', marginBottom: '16px'
+            }}>{loadError}</div>
+          )}
 
           {success && (
             <div style={{
@@ -94,7 +106,7 @@ export default function BookSlot() {
               <div className="input-group">
                 <label>Location</label>
                 <select className="input-field" value={form.location_id} onChange={e => setForm({...form, location_id: e.target.value})}>
-                  <option value="">Any location</option>
+                  <option value="">{locations.length === 0 ? 'No locations available' : 'Any location'}</option>
                   {locations.map(l => <option key={l.location_id} value={l.location_id}>{l.location_name}</option>)}
                 </select>
               </div>

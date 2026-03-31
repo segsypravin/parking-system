@@ -7,18 +7,26 @@ export default function MyVehicles() {
   const [showModal, setShowModal] = useState(false);
   const [editVehicle, setEditVehicle] = useState(null);
   const [form, setForm] = useState({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N' });
+  const [modalError, setModalError] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  const [pageError, setPageError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const res = await API.get('/vehicles/my');
-      setVehicles(res.data);
-    } catch (err) { console.error(err); }
+      setVehicles(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Load vehicles error:', err);
+      setPageError('Failed to load vehicles. Please refresh.');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setModalError('');
+    setModalLoading(true);
     try {
       if (editVehicle) {
         await API.put(`/vehicles/${editVehicle.vehicle_id}`, form);
@@ -29,12 +37,26 @@ export default function MyVehicles() {
       setEditVehicle(null);
       setForm({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N' });
       loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error('Vehicle submit error:', err);
+      const msg = err.response?.data?.error || err.message || 'Failed to save vehicle. Please try again.';
+      setModalError(msg);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleEdit = (v) => {
     setEditVehicle(v);
-    setForm({ vehicle_no: v.vehicle_no, vehicle_type: v.vehicle_type, frequent_visitor: v.frequent_visitor });
+    setModalError('');
+    setForm({ vehicle_no: v.vehicle_no, vehicle_type: v.vehicle_type, frequent_visitor: v.frequent_visitor || 'N' });
+    setShowModal(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditVehicle(null);
+    setModalError('');
+    setForm({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N' });
     setShowModal(true);
   };
 
@@ -42,10 +64,16 @@ export default function MyVehicles() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div><h1>My Vehicles</h1><p>Manage your registered vehicles</p></div>
-        <button className="btn btn-primary" onClick={() => { setEditVehicle(null); setForm({ vehicle_no: '', vehicle_type: 'Car', frequent_visitor: 'N' }); setShowModal(true); }}>
+        <button className="btn btn-primary" onClick={handleOpenAdd}>
           <FiPlus /> Add Vehicle
         </button>
       </div>
+
+      {pageError && (
+        <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', marginBottom: '16px' }}>
+          {pageError}
+        </div>
+      )}
 
       {vehicles.length === 0 ? (
         <div className="glass-card">
@@ -111,9 +139,16 @@ export default function MyVehicles() {
                   </div>
                 </div>
               </div>
+              {modalError && (
+                <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', marginTop: '8px' }}>
+                  {modalError}
+                </div>
+              )}
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{editVehicle ? 'Update' : 'Add Vehicle'}</button>
+                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={modalLoading}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={modalLoading}>
+                  {modalLoading ? 'Saving...' : (editVehicle ? 'Update' : 'Add Vehicle')}
+                </button>
               </div>
             </form>
           </div>

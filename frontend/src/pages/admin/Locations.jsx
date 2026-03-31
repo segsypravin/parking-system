@@ -7,18 +7,26 @@ export default function AdminLocations() {
   const [showModal, setShowModal] = useState(false);
   const [editLoc, setEditLoc] = useState(null);
   const [form, setForm] = useState({ location_name: '', address: '', total_levels: 1 });
+  const [modalError, setModalError] = useState('');
+  const [modalLoading, setModalLoading] = useState(false);
+  const [pageError, setPageError] = useState('');
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
       const res = await API.get('/locations');
-      setLocations(res.data);
-    } catch (err) { console.error(err); }
+      setLocations(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error('Load locations error:', err);
+      setPageError('Failed to load parking locations. Please refresh.');
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setModalError('');
+    setModalLoading(true);
     try {
       if (editLoc) {
         await API.put(`/locations/${editLoc.location_id}`, form);
@@ -29,12 +37,25 @@ export default function AdminLocations() {
       setEditLoc(null);
       setForm({ location_name: '', address: '', total_levels: 1 });
       loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error('Location submit error:', err);
+      setModalError(err.response?.data?.error || err.message || 'Failed to save location.');
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleEdit = (loc) => {
     setEditLoc(loc);
+    setModalError('');
     setForm({ location_name: loc.location_name, address: loc.address, total_levels: loc.total_levels });
+    setShowModal(true);
+  };
+
+  const handleOpenAdd = () => {
+    setEditLoc(null);
+    setModalError('');
+    setForm({ location_name: '', address: '', total_levels: 1 });
     setShowModal(true);
   };
 
@@ -48,10 +69,16 @@ export default function AdminLocations() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div><h1>Parking Locations</h1><p>Manage parking areas and maps</p></div>
-        <button className="btn btn-primary" onClick={() => { setEditLoc(null); setForm({ location_name: '', address: '', total_levels: 1 }); setShowModal(true); }}>
+        <button className="btn btn-primary" onClick={handleOpenAdd}>
           <FiPlus /> Add Location
         </button>
       </div>
+
+      {pageError && (
+        <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', marginBottom: '16px' }}>
+          {pageError}
+        </div>
+      )}
 
       <div className="content-grid">
         {locations.map(loc => (
@@ -116,9 +143,16 @@ export default function AdminLocations() {
                     onChange={e => setForm({...form, total_levels: e.target.value})} required />
                 </div>
               </div>
+              {modalError && (
+                <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontSize: '13px', marginTop: '16px' }}>
+                  {modalError}
+                </div>
+              )}
               <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">{editLoc ? 'Update' : 'Add Location'}</button>
+                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)} disabled={modalLoading}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={modalLoading}>
+                  {modalLoading ? 'Saving...' : (editLoc ? 'Update' : 'Add Location')}
+                </button>
               </div>
             </form>
           </div>

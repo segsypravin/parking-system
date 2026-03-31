@@ -1,30 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const db = require('../db');
 
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, contact_no, user_type } = req.body;
+    const { name, email, password, contact_no } = req.body;
 
-    // TODO: Implement SQL Check: if email already exists
-    // Example: SELECT * FROM user WHERE email = email
+    // Check if user already exists
+    const [existing] = await db.query("SELECT * FROM user WHERE email = ?", [email]);
+    if (existing.length > 0) {
+      return res.status(400).json({ error: 'User with this email already exists.' });
+    }
 
-    // TODO: Implement SQL Insert: create new user
-    // Example: INSERT INTO user (name, email, password, contact_no, user_type) VALUES (...)
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    const userId = Date.now(); // Temporary mock ID
+    const sql = "INSERT INTO user (name, email, password, contact_no, user_type) VALUES (?, ?, ?, ?, 'User')";
 
+    const [result] = await db.query(sql, [name, email, hashedPassword, contact_no]);
+    
+    const userId = result.insertId;
     const token = jwt.sign(
-      { user_id: userId, name, email, user_type: user_type || 'User' },
+      { user_id: userId, name, email, user_type: 'User' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     res.status(201).json({
-      message: 'Registration successful (Mock)',
+      message: 'User registered successfully',
       token,
-      user: { user_id: userId, name, email, user_type: user_type || 'User' }
+      user: { user_id: userId, name, email, user_type: 'User' }
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -37,25 +46,36 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // TODO: Implement SQL Check: verify credentials
-    // Example: SELECT * FROM user WHERE email = email AND password = password
+    const sql = "SELECT * FROM user WHERE email = ?";
+    
+    const [results] = await db.query(sql, [email]);
 
-    // Mock successful login for demonstration
-    const userId = 1;
+    if (results.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const user = results[0];
+    
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
     const token = jwt.sign(
-      { user_id: userId, name: 'Mock User', email, user_type: 'User' },
+      { user_id: user.user_id, name: user.name, email: user.email, user_type: user.user_type || 'User' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     res.json({
-      message: 'Login successful (Mock)',
+      message: 'Login successful',
       token,
       user: {
-        user_id: userId,
-        name: 'Mock User',
-        email: email,
-        user_type: 'User'
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        user_type: user.user_type || 'User'
       }
     });
   } catch (err) {
@@ -73,19 +93,18 @@ router.get('/me', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // TODO: Implement SQL Fetch: get user details by ID
-    // Example: SELECT user_id, name, email, contact_no, user_type FROM user WHERE user_id = decoded.user_id
-
-    res.json({
-      user_id: decoded.user_id,
-      name: decoded.name || 'Mock User',
-      email: decoded.email,
-      contact_no: '0000000000',
-      user_type: decoded.user_type
-    });
+    const sql = "SELECT user_id, name, email, user_type FROM user WHERE user_id = ?";
+    
+    const [results] = await db.query(sql, [decoded.user_id]);
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    res.json(results[0]);
   } catch (err) {
     res.status(403).json({ error: 'Invalid token' });
   }
 });
 
 module.exports = router;
+

@@ -1,27 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
-
-// Mock data for initial development
-const mockSlots = [
-  { slot_id: 1, slot_type: 'Car', slot_level: 1, slot_priority: 1, slot_status: 'Available', location_id: 1, location_name: 'Main Gate' },
-  { slot_id: 2, slot_type: 'Car', slot_level: 1, slot_priority: 2, slot_status: 'Occupied', location_id: 1, location_name: 'Main Gate' },
-  { slot_id: 3, slot_type: 'Bike', slot_level: 2, slot_priority: 1, slot_status: 'Available', location_id: 2, location_name: 'Entry B' }
-];
+const db = require('../db');
 
 // Get all slots (filterable by location_id, status, level)
 router.get('/', verifyToken, async (req, res) => {
   try {
-    // TODO: Implement SQL Fetch with filters
-    // Example: SELECT ps.*, pl.location_name FROM parking_slot ps LEFT JOIN ... WHERE ...
+    const { location_id, slot_status, slot_level } = req.query;
     
-    // Filtering mock data for demonstration
-    let filteredSlots = [...mockSlots];
-    if (req.query.location_id) filteredSlots = filteredSlots.filter(s => s.location_id == req.query.location_id);
-    if (req.query.status) filteredSlots = filteredSlots.filter(s => s.slot_status == req.query.status);
-    if (req.query.level) filteredSlots = filteredSlots.filter(s => s.slot_level == req.query.level);
+    let sql = "SELECT ps.*, l.location_name FROM parking_slot ps LEFT JOIN location l ON ps.location_id = l.location_id WHERE 1=1";
+    const params = [];
 
-    res.json(filteredSlots);
+    if (location_id) {
+      sql += " AND ps.location_id = ?";
+      params.push(location_id);
+    }
+    if (slot_status) {
+      sql += " AND ps.slot_status = ?";
+      params.push(slot_status);
+    }
+    if (slot_level) {
+      sql += " AND ps.slot_level = ?";
+      params.push(slot_level);
+    }
+
+    const [results] = await db.query(sql, params);
+    res.json(results);
   } catch (err) {
     console.error('Get slots error:', err);
     res.status(500).json({ error: 'Failed to fetch slots.' });
@@ -31,16 +35,19 @@ router.get('/', verifyToken, async (req, res) => {
 // Get slot stats
 router.get('/stats', verifyToken, async (req, res) => {
   try {
-    // TODO: Implement SQL Aggregate queries
-    // Example: SELECT COUNT(*) FROM parking_slot WHERE slot_status = 'Occupied'
+    const [totalRes] = await db.query("SELECT COUNT(*) as count FROM parking_slot");
+    const [occupiedRes] = await db.query("SELECT COUNT(*) as count FROM parking_slot WHERE slot_status = 'Occupied'");
+    const [availableRes] = await db.query("SELECT COUNT(*) as count FROM parking_slot WHERE slot_status = 'Available'");
+    const [reservedRes] = await db.query("SELECT COUNT(*) as count FROM parking_slot WHERE slot_status = 'Reserved'");
     
     res.json({
-      total: mockSlots.length,
-      occupied: mockSlots.filter(s => s.slot_status === 'Occupied').length,
-      available: mockSlots.filter(s => s.slot_status === 'Available').length,
-      reserved: mockSlots.filter(s => s.slot_status === 'Reserved').length
+      total: totalRes[0].count,
+      occupied: occupiedRes[0].count,
+      available: availableRes[0].count,
+      reserved: reservedRes[0].count
     });
   } catch (err) {
+    console.error('Get slot stats error:', err);
     res.status(500).json({ error: 'Failed to fetch slot stats.' });
   }
 });
@@ -50,10 +57,10 @@ router.post('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { slot_type, slot_level, slot_priority, slot_status, location_id } = req.body;
     
-    // TODO: Implement SQL Insert
-    // Example: INSERT INTO parking_slot (slot_type, ...) VALUES (...)
+    const sql = "INSERT INTO parking_slot (slot_type, slot_level, slot_priority, slot_status, location_id) VALUES (?, ?, ?, ?, ?)";
+    const [result] = await db.query(sql, [slot_type, slot_level, slot_priority, slot_status || 'Available', location_id]);
 
-    res.status(201).json({ message: 'Slot added (Mock).', slot_id: Date.now() });
+    res.status(201).json({ message: 'Slot added successfully', slot_id: result.insertId });
   } catch (err) {
     console.error('Add slot error:', err);
     res.status(500).json({ error: 'Failed to add slot.' });
@@ -65,12 +72,13 @@ router.put('/:id/status', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { slot_status } = req.body;
     
-    // TODO: Implement SQL Update status
-    // Example: UPDATE parking_slot SET slot_status = ? WHERE slot_id = ?
+    const sql = "UPDATE parking_slot SET slot_status = ? WHERE slot_id = ?";
+    await db.query(sql, [slot_status, req.params.id]);
 
-    res.json({ message: 'Slot status updated (Mock).' });
+    res.json({ message: 'Slot status updated successfully' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to update slot.' });
+    console.error('Update status error:', err);
+    res.status(500).json({ error: 'Failed to update slot status.' });
   }
 });
 
@@ -79,11 +87,12 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { slot_type, slot_level, slot_priority, slot_status, location_id } = req.body;
     
-    // TODO: Implement SQL Update all fields
-    // Example: UPDATE parking_slot SET slot_type = ?, ... WHERE slot_id = ?
+    const sql = "UPDATE parking_slot SET slot_type = ?, slot_level = ?, slot_priority = ?, slot_status = ?, location_id = ? WHERE slot_id = ?";
+    await db.query(sql, [slot_type, slot_level, slot_priority, slot_status, location_id, req.params.id]);
 
-    res.json({ message: 'Slot updated (Mock).' });
+    res.json({ message: 'Slot updated successfully' });
   } catch (err) {
+    console.error('Update slot error:', err);
     res.status(500).json({ error: 'Failed to update slot.' });
   }
 });
@@ -91,13 +100,15 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
 // Delete slot (admin)
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // TODO: Implement SQL Delete
-    // Example: DELETE FROM parking_slot WHERE slot_id = ?
+    const sql = "DELETE FROM parking_slot WHERE slot_id = ?";
+    await db.query(sql, [req.params.id]);
 
-    res.json({ message: 'Slot deleted (Mock).' });
+    res.json({ message: 'Slot deleted successfully' });
   } catch (err) {
+    console.error('Delete slot error:', err);
     res.status(500).json({ error: 'Failed to delete slot.' });
   }
 });
 
 module.exports = router;
+

@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiUser, FiMail, FiLock, FiPhone, FiArrowRight } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiPhone, FiArrowRight, FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', contact_no: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
@@ -67,8 +68,29 @@ export default function Register() {
             </div>
             <div className="input-group">
               <label><FiLock size={12} /> Password</label>
-              <input type="password" name="password" className="input-field" value={form.password}
-                onChange={handleChange} placeholder="••••••••" required />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  name="password" 
+                  className="input-field" 
+                  value={form.password}
+                  onChange={handleChange} 
+                  placeholder="••••••••" 
+                  required 
+                  style={{ paddingRight: '40px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px'
+                  }}
+                >
+                  {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                </button>
+              </div>
             </div>
             <div className="input-group">
               <label><FiPhone size={12} /> Contact Number</label>

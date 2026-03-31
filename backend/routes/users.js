@@ -1,20 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin } = require('../middleware/auth');
-
-// Mock user list
-const mockUsers = [
-  { user_id: 1, name: 'Mock User', email: 'user@example.com', contact_no: '0000000000', user_type: 'User' },
-  { user_id: 2, name: 'Mock Admin', email: 'admin@example.com', contact_no: '1111111111', user_type: 'Admin' }
-];
+const db = require('../db');
 
 // Get all users (admin)
 router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // TODO: Implement SQL Fetch
-    // Example: SELECT user_id, name, email, contact_no, user_type FROM user
+    const sql = "SELECT user_id, name, email, contact_no, user_type, parking_charges FROM user";
     
-    res.json(mockUsers);
+    const [results] = await db.query(sql);
+    res.json(results);
   } catch (err) {
     console.error('Get users error:', err);
     res.status(500).json({ error: 'Failed to fetch users.' });
@@ -24,13 +19,16 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
 // Get user by ID
 router.get('/:id', verifyToken, async (req, res) => {
   try {
-    // TODO: Implement SQL Fetch by ID
-    // Example: SELECT * FROM user WHERE user_id = ?
+    const sql = "SELECT user_id, name, email, contact_no, user_type, parking_charges FROM user WHERE user_id = ?";
     
-    const user = mockUsers.find(u => u.user_id == req.params.id);
-    if (!user) return res.status(404).json({ error: 'User not found.' });
-    res.json(user);
+    const [results] = await db.query(sql, [req.params.id]);
+    
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    res.json(results[0]);
   } catch (err) {
+    console.error('Get user by ID error:', err);
     res.status(500).json({ error: 'Failed to fetch user.' });
   }
 });
@@ -40,11 +38,12 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { name, contact_no, user_type } = req.body;
     
-    // TODO: Implement SQL Update
-    // Example: UPDATE user SET name = ?, ... WHERE user_id = ?
+    const sql = "UPDATE user SET name = ?, contact_no = ?, user_type = ? WHERE user_id = ?";
 
-    res.json({ message: 'User updated successfully (Mock).' });
+    await db.query(sql, [name, contact_no, user_type, req.params.id]);
+    res.json({ message: 'User updated successfully' });
   } catch (err) {
+    console.error('Update user error:', err);
     res.status(500).json({ error: 'Failed to update user.' });
   }
 });
@@ -52,13 +51,15 @@ router.put('/:id', verifyToken, requireAdmin, async (req, res) => {
 // Delete user (admin)
 router.delete('/:id', verifyToken, requireAdmin, async (req, res) => {
   try {
-    // TODO: Implement SQL Delete
-    // Example: DELETE FROM user WHERE user_id = ?
+    const sql = "DELETE FROM user WHERE user_id = ?";
 
-    res.json({ message: 'User deleted successfully (Mock).' });
+    await db.query(sql, [req.params.id]);
+    res.json({ message: 'User deleted successfully' });
   } catch (err) {
+    console.error('Delete user error:', err);
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 });
 
 module.exports = router;
+

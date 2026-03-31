@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
+import { FiMail, FiLock, FiArrowRight, FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -59,10 +60,30 @@ export default function Login() {
               <input type="email" className="input-field" value={email}
                 onChange={e => setEmail(e.target.value)} placeholder="admin@parking.com" required />
             </div>
-            <div className="input-group">
+            <div className="input-group" style={{ position: 'relative' }}>
               <label><FiLock size={12} style={{ marginRight: '4px' }} /> Password</label>
-              <input type="password" className="input-field" value={password}
-                onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  className="input-field" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)} 
+                  placeholder="••••••••" 
+                  required 
+                  style={{ paddingRight: '40px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px'
+                  }}
+                >
+                  {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+                </button>
+              </div>
             </div>
             <button type="submit" className="btn btn-primary btn-lg" disabled={loading}
               style={{ width: '100%', marginTop: '8px' }}>
@@ -75,15 +96,6 @@ export default function Login() {
           Don&apos;t have an account?{' '}
           <Link to="/register" style={{ color: 'var(--accent-blue-light)', fontWeight: 600 }}>Register</Link>
         </p>
-
-        <div style={{
-          marginTop: '20px', padding: '12px', borderRadius: 'var(--radius-sm)',
-          background: 'var(--bg-glass)', border: '1px solid var(--border-glass)',
-          fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center'
-        }}>
-          <strong>Demo Admin:</strong> admin@parking.com / admin123<br />
-          <strong>Demo User:</strong> vaishnavi@parking.com / user123
-        </div>
       </div>
     </div>
   );
